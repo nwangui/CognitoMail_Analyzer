@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: email-analyzer
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    plan: free
+    autoDeploy: true
+    envVars:
+      FLASK_ENV: production
+    # Ensures Render includes cve_list.json in the environment
+    preDeployCommand: |
+      if [ ! -f cve_list.json ]; then
+        echo "{}" > cve_list.json
+      fi

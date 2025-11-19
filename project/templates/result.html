@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Analysis Result — PhishScan Dashboard</title>
+  <style>
+    :root{
+      --bg-1:#020617; --bg-2:#071a2f; --panel:#081428; --muted:#9fb0c9;
+      --accent1:#7c3aed; --accent2:#06b6d4; --green:#10b981; --yellow:#f59e0b; --red:#ef4444; --blue:#3b82f6;
+    }
+    .scroll-container {
+      /* Define the fixed height for the scrollable box */
+      max-height: 400px; /* Adjust this value to your preferred height */
+      overflow-y: auto; /* Enable vertical scrollbar when content exceeds max-height */
+      padding-right: 15px; /* Add some space to avoid content hitting the scrollbar */
+      margin-top: 10px;
+    }
+    /* ⬅️ FIX 1: The opening curly brace below was inside the .scroll-container style block */
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,var(--bg-1),var(--bg-2));color:#e6eef8;min-height:100vh;padding:18px;overflow:auto}
+    .cyber-grid { position:fixed; inset:0; z-index:0; pointer-events:none; --g:60px;
+      background-image: linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px), radial-gradient(circle at 10% 10%, rgba(124,58,237,0.03), transparent 6%);
+      background-size: var(--g) var(--g), var(--g) var(--g), 100% 100%; animation: gridShift 14s linear infinite; mix-blend-mode: overlay; opacity:0.9;
+    }
+    @keyframes gridShift { from { background-position: 0 0, 0 0, 0 0; } to { background-position: 120px 0, -120px 0, 0 0; } }
+    .wrap{position:relative;z-index:2;max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1fr 380px;gap:18px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:16px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 12px 40px rgba(2,6,23,0.6)}
+    h1{margin:0;font-size:18px}
+    .small{font-size:13px;color:var(--muted)}
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .verdict{padding:12px 16px;border-radius:12px;font-weight:800;display:inline-flex;gap:12px;align-items:center;box-shadow:0 8px 30px rgba(0,0,0,0.35)}
+    .verdict.high{background:linear-gradient(90deg,#ff7a7a,#ef4444);color:white;animation:glow 1.6s ease-in-out infinite alternate}
+    .verdict.med{background:linear-gradient(90deg,#facc15,#f97316);color:#07122f}
+    .verdict.low{background:linear-gradient(90deg,#34d399,#10b981);color:#042022}
+    @keyframes glow { from { box-shadow:0 8px 30px rgba(239,68,68,0.35); transform: translateY(0); } to { box-shadow:0 18px 60px rgba(239,68,68,0.55); transform: translateY(-3px); } }
+    .meta{display:flex;flex-direction:column;gap:6px}
+    .score{font-size:30px;font-weight:900}
+    .tag{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,0.02);font-weight:700;color:var(--muted);font-size:13px}
+    .details-list{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px}
+    .detail-item{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:12px;background:rgba(255,255,255,0.01);border:1px solid rgba(255,255,255,0.02)}
+    .icon{width:44px;height:44px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-weight:800}
+    .sev-critical{background:linear-gradient(90deg,#f87171,#ef4444);color:white}
+    .sev-high{background:linear-gradient(90deg,#fb923c,#f97316);color:white}
+    .sev-medium{background:linear-gradient(90deg,#facc15,#f59e0b);color:#07122f}
+    .sev-low{background:linear-gradient(90deg,#93c5fd,#60a5fa);color:#042022}
+    .detail-content p{margin:0;color:#dbeafe}
+    .detail-meta{font-size:12px;color:var(--muted);margin-top:8px}
+    .auth-list{padding:12px;border-radius:10px;background:rgba(255,255,255,0.01);border:1px solid rgba(255,255,255,0.03)}
+    .link{color:var(--blue);text-decoration:underline}
+    .risk{color:var(--red);font-weight:800}
+    .cve-table{width:100%;border-collapse:collapse;margin-top:10px}
+    .cve-table th,.cve-table td{padding:8px;border-bottom:1px dashed rgba(255,255,255,0.03);text-align:left}
+    .cve-critical{color:var(--red);font-weight:800}
+    .cve-info{color:var(--yellow);font-weight:700}
+    .actions{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:12px}
+    .btn{background:transparent;border:1px solid rgba(255,255,255,0.04);padding:8px 12px;border-radius:10px;color:var(--muted);cursor:pointer}
+    .btn.primary{background:linear-gradient(90deg,var(--accent1),var(--accent2));color:white;border:none}
+    .top-right{position:fixed;right:18px;top:18px;z-index:4}
+    .toggle{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:10px;color:var(--muted);cursor:pointer}
+    .light .card{background:#fff;color:#081428;border:1px solid rgba(2,6,23,0.06)}
+    .light .small{color:#475569}
+    .light .detail-content p{color:#0f172a}
+    .light .link{color:#1d4ed8}
+    .light .risk{color:#dc2626}
+    .light .cyber-grid{opacity:0.5;}
+    @media (max-width:1000px){ .wrap{grid-template-columns:1fr} .icon{width:40px;height:40px} }
+  </style>
+</head>
+<body>
+  <div class="cyber-grid" aria-hidden="true"></div>
+
+  <div class="top-right">
+    <button id="themeToggle" class="toggle">Toggle Dark/Light</button>
+  </div>
+
+  <div class="wrap" role="main" aria-labelledby="reportTitle">
+    <div class="card" aria-label="analysis">
+      <div class="topbar">
+        <div>
+          <h1 id="reportTitle">📋 Email Analysis Report</h1>
+          <div class="small">Sender: <strong>{{ result.sender }}</strong> • Subject: <strong>{{ result.subject }}</strong></div>
+        </div>
+        <div>
+          {% set v = result.verdict %}
+          {% if "High" in v %}
+            <div class="verdict high">🚨 High Risk</div>
+          {% elif "Medium" in v %}
+            <div class="verdict med">⚠️ Medium Risk</div>
+          {% else %}
+            <div class="verdict low">✅ Low Risk</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="meta">
+          <div class="score">{{ result.score }}</div>
+          <div class="small">Top contributing items below — expand to inspect links, keywords, and details.</div>
+        </div>
+        <div>
+          <a class="btn" href="/">← Analyze another</a>
+        </div>
+      </div>
+
+      <section class="details-box">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h3 style="margin:0">Details</h3>
+          </div>
+
+        <div class="scroll-container">
+            <ul class="details-list" id="detailsList">
+                {% for item in result.details %}
+                {% set sev = item.severity %}
+                <li class="detail-item" data-sev="{{ sev }}">
+                    <div class="icon {% if sev=='critical' %}sev-critical{% elif sev=='high' %}sev-high{% elif sev=='medium' %}sev-medium{% else %}sev-low{% endif %}">
+                      {% if sev=='critical' %}❗{% elif sev=='high' %}⚠️{% elif sev=='medium' %}🔶{% else %}ℹ️{% endif %}
+                    </div>
+                    <div class="detail-content">
+                        <p>{{ item.html }}</p>
+                        <div class="detail-meta">Severity: <strong>{{ sev|capitalize }}</strong></div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div style="margin-top:14px">
+          <button class="btn" onclick="toggle('spfBlock')">SPF Details ▾</button>
+          <div id="spfBlock" style="display:none;margin-top:10px" class="auth-list">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <strong>SPF: {{ result.domain_analysis.SPF_Status }}</strong>
+              {% if result.domain_analysis.SPF_Status == 'pass' %}
+                <span style="color:var(--green);font-weight:800">PASS</span>
+              {% else %}
+                <span style="color:var(--red);font-weight:800">{{ result.domain_analysis.SPF_Status|upper }}</span>
+              {% endif %}
+            </div>
+            <div style="margin-top:8px">{{ result.domain_analysis.SPF_Reason_HTML | safe }}</div>
+          </div>
+
+          <button class="btn" onclick="toggle('dkimBlock')" style="margin-top:8px">DKIM Details ▾</button>
+          <div id="dkimBlock" style="display:none;margin-top:10px" class="auth-list">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <strong>DKIM: {{ result.domain_analysis.DKIM_Status }}</strong>
+              {% if result.domain_analysis.DKIM_Status == 'pass' %}
+                <span style="color:var(--green);font-weight:800">PASS</span>
+              {% else %}
+                <span style="color:var(--red);font-weight:800">{{ result.domain_analysis.DKIM_Status|upper }}</span>
+              {% endif %}
+            </div>
+            <div style="margin-top:8px">{{ result.domain_analysis.DKIM_Reason_HTML | safe }}</div>
+          </div>
+
+          <button class="btn" onclick="toggle('dmarcBlock')" style="margin-top:8px">DMARC Details ▾</button>
+          <div id="dmarcBlock" style="display:none;margin-top:10px" class="auth-list">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <strong>DMARC: {{ result.domain_analysis.DMARC_Status }}</strong>
+              {% if result.domain_analysis.DMARC_Status == 'pass' %}
+                <span style="color:var(--green);font-weight:800">PASS</span>
+              {% else %}
+                <span style="color:var(--red);font-weight:800">{{ result.domain_analysis.DMARC_Status|upper }}</span>
+              {% endif %}
+            </div>
+            <div style="margin-top:8px">{{ result.domain_analysis.DMARC_Reason_HTML | safe }}</div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px;">
+          <h3>VirusTotal Domain Results</h3>
+          {% if result.virustotal and result.virustotal|length > 0 %}
+            <table class="cve-table">
+              <tr>
+                <th>Domain</th>
+                <th>Malicious</th>
+                <th>Suspicious</th>
+                <th>Harmless</th>
+                <th>Undetected</th>
+                <th>Tags</th>
+              </tr>
+              {% for vt in result.virustotal %}
+                {% set stats = vt.vt.analysis or {} %}
+                <tr>
+                  <td>{{ vt.domain }}</td>
+                  <td>{{ stats.malicious or 0 }}</td>
+                  <td>{{ stats.suspicious or 0 }}</td>
+                  <td>{{ stats.harmless or 0 }}</td>
+                  <td>{{ stats.undetected or 0 }}</td>
+                  <td>
+                    {% if vt.vt.tags %}
+                      {{ vt.vt.tags | join(', ') }}
+                    {% else %}
+                      None
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </table>
+          {% else %}
+            <p>No VirusTotal results available for detected domains.</p>
+          {% endif %}
+        </div>
+
+        <div style="margin-top:20px;">
+          <h2>CVE Entries Detected</h2>
+          {% if result.found_cves and result.found_cves|length > 0 %}
+            <table class="cve-table">
+              <tr>
+                <th>CVE</th>
+                <th>Description</th>
+              </tr>
+              {% for cve in result.found_cves %}
+                <tr>
+                  <td class="cve-critical">{{ cve.cve }}</td>
+                  <td class="cve-info">{{ cve.text }}</td>
+                </tr>
+              {% endfor %}
+            </table>
+          {% else %}
+            <p>No CVE entries detected in the email.</p>
+          {% endif %}
+        </div>
+
+        <div class="actions" style="margin-top:16px">
+          <button class="btn" onclick="copySummary()">Copy summary</button>
+          <button class="btn primary" onclick="downloadPDF()">Download PDF Report</button>
+        </div>
+      </section>
+    </div>
+
+    <aside class="card" aria-label="summary">
+      <div>
+        <h3 style="margin:0">Quick Summary</h3>
+        <div class="small" style="margin-top:8px">Sender</div>
+        <div style="font-weight:800;margin-bottom:8px">{{ result.sender }}</div>
+
+        <div class="small">Subject</div>
+        <div style="font-weight:700;margin-bottom:12px">{{ result.subject }}</div>
+
+        <div class="small">Score</div>
+        <div style="font-size:26px;font-weight:800;margin-bottom:12px">{{ result.score }}</div>
+
+        <h4 style="margin:8px 0 6px 0">Authentication</h4>
+        <ul style="margin:0;padding:0">
+          <li class="small">SPF: <strong>{{ result.domain_analysis.SPF_Status }}</strong></li>
+          <li class="small">DKIM: <strong>{{ result.domain_analysis.DKIM_Status }}</strong></li>
+          <li class="small">DMARC: <strong>{{ result.domain_analysis.DMARC_Status }}</strong></li>
+        </ul>
+
+        <h4 style="margin-top:12px">Top contributing factors</h4>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+          {% for d in result.details[:6] %}
+            <div style="padding:8px 10px;border-radius:10px;background:rgba(255,255,255,0.02);font-size:13px">
+              {{ d.html | safe }}
+            </div>
+          {% endfor %}
+        </div>
+
+        <div style="margin-top:12px">
+          <h4 style="margin:0 0 6px 0">Notes</h4>
+          <div class="small" style="color:var(--muted)">SPF/DKIM pass can still be abused if attackers use legitimate provider infrastructure. DMARC alignment + details matter more.</div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <script>
+      // theme toggle
+      const toggleBtn = document.getElementById('themeToggle');
+      toggleBtn.addEventListener('click', () => {
+          const root = document.documentElement;
+          root.classList.toggle('light');
+          if (root.classList.contains('light')) localStorage.setItem('phish_theme', 'light'); else localStorage.removeItem('phish_theme');
+      });
+      if (localStorage.getItem('phish_theme') === 'light') {
+          document.documentElement.classList.add('light');
+      }
+
+      // helpers
+      function toggle(id) {
+          const el = document.getElementById(id);
+          if (!el) return;
+          el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none';
+      }
+
+      function copySummary() {
+          try {
+              const score = "{{ result.score }}";
+              const verdict = "{{ result.verdict }}";
+              const sender = `{{ result.sender }}`;
+              const subject = `{{ result.subject }}`;
+              let details = [];
+              // Use querySelectorAll on the list items
+              document.querySelectorAll('#detailsList .detail-content p').forEach(p => details.push(p.innerText.trim()));
+              const txt = `Sender: ${sender}\nSubject: ${subject}\nScore: ${score}\nVerdict: ${verdict}\n\nDetails:\n- ${details.join('\n- ')}`;
+              navigator.clipboard.writeText(txt).then(() => alert('Summary copied to clipboard'));
+          } catch (e) {
+              alert('Copy failed');
+          }
+      }
+
+      function downloadPDF() {
+          fetch("/download-report", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              // IMPORTANT: The result|tojson must be wrapped in another pair of braces
+              // if it is the value of a key in a JSON object passed to the body.
+              body: JSON.stringify({ result: {{ result | tojson }} })
+          })
+          .then(res => res.blob())
+          .then(blob => {
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              // ⬅️ CRITICAL: If the dynamic filename fix didn't work, this default
+              // filename will be used. It should be handled by the server's send_file.
+              a.download = "email_report.pdf";
+              a.click();
+          });
+      }
+  </script>
+</body>
+</html>

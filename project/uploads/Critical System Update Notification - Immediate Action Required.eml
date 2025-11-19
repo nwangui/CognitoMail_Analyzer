@@ -1,0 +1,48 @@
+MIME-Version: 1.0
+Date: Thu, 20 Nov 2025 00:34:05 +0400
+Message-ID: <CAPr77ieU9hf0u1jQ8qnaXQ0ysttBJGieOjUvF+tu19VRWkF8bw@mail.gmail.com>
+Subject: Critical System Update Notification - Immediate Action Required
+From: Lily Lokah <lilylokah@gmail.com>
+To: Lily Lokah <lilylokah@gmail.com>
+Content-Type: multipart/alternative; boundary="0000000000006a97150643f880f3"
+
+--0000000000006a97150643f880f3
+Content-Type: text/plain; charset="UTF-8"
+
+  MIME-Version: 1.0 Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: 7bit Dear User, We detected unauthorized
+activity on your mail server. Please log4shell into your JNDI LDAP portal
+to verify your account immediately. The portal is located at:
+https://fake-jndi-server.com/login System administrators must confirm the
+latest update for the Exim SMTP server to prevent RCE. Affected components
+include Microsoft Exchange OWA and Outlook reminder services. Failure to
+perform this maintenance before the end of the month may result in
+privilege escalation or NTLM credential leak. Please check the system
+documentation for details regarding
+
+--0000000000006a97150643f880f3
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">=C2=A0 MIME-Version: 1.0
+Content-Type: text/plain; charset=3D&quot;us-ascii&quot;
+Content-Transfer-Encoding: 7bit
+
+Dear User,
+
+We detected unauthorized activity on your mail server. Please log4shell int=
+o your JNDI LDAP portal to verify your account immediately.
+The portal is located at: <a href=3D"https://fake-jndi-server.com/login">ht=
+tps://fake-jndi-server.com/login</a>
+
+System administrators must confirm the latest update for the Exim SMTP serv=
+er to prevent RCE.
+
+Affected components include Microsoft Exchange OWA and Outlook reminder ser=
+vices. Failure to perform this maintenance before the end of the month may =
+result in privilege escalation or NTLM credential leak.
+
+Please check the system documentation for details regarding=C2=A0 =C2=A0</d=
+iv>
+
+--0000000000006a97150643f880f3--

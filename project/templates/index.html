@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PhishScan — Upload EML</title>
+  <style>
+    :root{
+      --bg-1:#020617; --bg-2:#0b2540; --panel:#081428; --muted:#9fb0c9;
+      --accent1:#7c3aed; --accent2:#06b6d4; --glass: rgba(255,255,255,0.04);
+    }
+    body{margin:0;font-family:Inter,system-ui, -apple-system, "Segoe UI", Roboto, Arial;background:linear-gradient(180deg,var(--bg-1),var(--bg-2));color:#e6eef8;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px;overflow:hidden}
+    .cyber-grid{position:fixed;inset:0;z-index:0;pointer-events:none;--g:60px;background-image:linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px),radial-gradient(circle at 10% 10%, rgba(124,58,237,0.03), transparent 6%);background-size:var(--g) var(--g),var(--g) var(--g),100% 100%;animation:gridShift 12s linear infinite;mix-blend-mode:overlay;opacity:0.9}
+    @keyframes gridShift { from{background-position:0 0,0 0,0 0} to{background-position:120px 0,-120px 0,0 0} }
+    .card{position:relative;z-index:2;width:920px;max-width:96%;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));border-radius:14px;padding:28px;box-shadow:0 18px 60px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.04)}
+    .logo{width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,var(--accent1),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:800;color:white;box-shadow:0 6px 30px rgba(124,58,237,0.12)}
+    h1{margin:0;font-size:20px}
+    p.lead{margin:8px 0 20px;color:var(--muted)}
+    .uploader{display:flex;gap:12px;align-items:center}
+    input[type=file]{background:var(--glass);padding:14px;border-radius:10px;color:#e6eef8;border:1px dashed rgba(255,255,255,0.06)}
+    button{background:linear-gradient(90deg,var(--accent1),var(--accent2));border:none;color:white;padding:12px 18px;border-radius:10px;cursor:pointer;font-weight:700;box-shadow:0 8px 30px rgba(124,58,237,0.12)}
+    .muted{color:var(--muted);font-size:13px}
+    .top-right{position:fixed;right:18px;top:18px;z-index:4}
+    .toggle{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:10px;color:var(--muted);cursor:pointer}
+    footer{margin-top:14px;color:var(--muted);font-size:13px;position:relative;z-index:2}
+  </style>
+</head>
+<body>
+  <div class="cyber-grid" aria-hidden="true"></div>
+  <div class="top-right"><button id="themeToggle" class="toggle">Toggle Dark/Light</button></div>
+
+  <div class="card">
+    <div style="display:flex;gap:12px;align-items:center">
+      <div class="logo">PH</div>
+      <div>
+        <h1>🔐 CognitoMail — Email Phishing Analyzer</h1>
+        <div class="muted">Upload a .eml file to analyze SPF/DKIM/DMARC, URLs, attachments, CVEs and more.</div>
+      </div>
+    </div>
+
+    <form class="uploader" method="post" enctype="multipart/form-data" style="margin-top:18px">
+      <input name="file" type="file" accept=".eml" />
+      <button type="submit">Analyze</button>
+    </form>
+
+    {% if error %}
+      <div style="color:#ffb4b4;margin-top:12px">{{ error }}</div>
+    {% endif %}
+
+    <footer>🛡️ Disclaimer: Your First Line of Defense.
+This tool provides a diagnostic risk assessment of your email based on known criteria (Authentication, Threat Intel, CVEs).
+
+No Action Taken: We do not block, delete, or quarantine emails.
+
+User Action Required: The final decision and any necessary actions (e.g., deleting, reporting, or forwarding) must be taken by you based on these findings.</footer>
+  </div>
+
+<script>
+const toggleBtn = document.getElementById('themeToggle');
+toggleBtn.addEventListener('click', () => {
+  document.documentElement.classList.toggle('light');
+  if (document.documentElement.classList.contains('light')) localStorage.setItem('phish_theme','light'); else localStorage.removeItem('phish_theme');
+});
+if (localStorage.getItem('phish_theme') === 'light') document.documentElement.classList.add('light');
+</script>
+</body>
+</html>

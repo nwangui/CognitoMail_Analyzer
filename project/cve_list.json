@@ -1,0 +1,122 @@
+[
+  {
+    "cve": "CVE-2021-44228",
+    "keywords": [
+      "log4j",
+      "log4shell",
+      "jndi",
+      "ldap"
+    ],
+    "description": "Log4Shell remote code execution affecting Log4j."
+  },
+  {
+    "cve": "CVE-2023-23397",
+    "keywords": [
+      "outlook reminder",
+      "outlook ntlm"
+    ],
+    "description": "NTLM credential leak via Outlook Reminder."
+  },
+  {
+    "cve": "CVE-2023-51765",
+    "keywords": [
+      "exim",
+      "smtp",
+      "mail server",
+      "rce"
+    ],
+    "description": "Exim SMTP server remote code execution vulnerability due to improper input validation in email handling."
+  },
+  {
+    "cve": "CVE-2020-16875",
+    "keywords": [
+      "exchange",
+      "email",
+      "rce",
+      "microsoft exchange"
+    ],
+    "description": "Microsoft Exchange Server remote code execution caused by improper email content validation."
+  },
+  {
+    "cve": "CVE-2021-24085",
+    "keywords": [
+      "outlook",
+      "email client",
+      "preview pane",
+      "xss"
+    ],
+    "description": "Outlook preview pane vulnerability allowing crafted emails to trigger script execution."
+  },
+  {
+    "cve": "CVE-2018-8581",
+    "keywords": [
+      "exchange",
+      "email",
+      "privilege escalation",
+      "owa"
+    ],
+    "description": "Microsoft Exchange privilege escalation via improper email processing in Outlook Web Access."
+  },
+  {
+    "cve": "CVE-2019-1136",
+    "keywords": [
+      "outlook",
+      "email attachment",
+      "rce",
+      "office"
+    ],
+    "description": "Outlook RCE triggered through malicious email attachments exploiting memory corruption."
+  },
+  {
+    "cve": "CVE-2020-0688",
+    "keywords": [
+      "exchange",
+      "email",
+      "rce",
+      "serialization",
+      "owa"
+    ],
+    "description": "Microsoft Exchange RCE due to reused validation keys affecting email processing components."
+  },
+  {
+    "cve": "CVE-2018-6789",
+    "keywords": [
+      "exim",
+      "smtp",
+      "email server",
+      "buffer overflow"
+    ],
+    "description": "Exim buffer overflow triggered by malformed email input leading to remote code execution."
+  },
+  {
+    "cve": "CVE-2017-11774",
+    "keywords": [
+      "exchange",
+      "owa",
+      "redirection",
+      "email"
+    ],
+    "description": "Microsoft Exchange OWA vulnerability allowing malicious email redirects and credential theft."
+  },
+  {
+    "cve": "CVE-2019-11043",
+    "keywords": [
+      "php-fpm",
+      "email upload",
+      "roundcube",
+      "webmail"
+    ],
+    "description": "PHP-FPM vulnerability affecting Roundcube webmail installations leading to RCE."
+  },
+  {
+    "cve": "CVE-2020-12641",
+    "keywords": [
+      "dovecot",
+      "imap",
+      "email server",
+      "auth bypass"
+    ],
+    "description": "Dovecot IMAP server vulnerability causing authentication bypass during email login."
+  }
+
+]

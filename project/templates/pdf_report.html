@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Email Security Analysis Report</title>
+<style>
+    body {
+        font-family: "Inter", Arial, sans-serif;
+        margin: 40px;
+        color: #1a1a1a;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+    h1, h2, h3 {
+        font-weight: 700;
+    }
+    h1 {
+        font-size: 28px;
+        margin-bottom: 5px;
+        color: #2b2b2b;
+    }
+    h2 {
+        font-size: 20px;
+        margin-top: 28px;
+        border-bottom: 2px solid #e5e5e5;
+        padding-bottom: 4px;
+        color: #333;
+    }
+    h3 {
+        font-size: 16px;
+        margin-top: 16px;
+        color: #444;
+    }
+    .section {
+        margin-bottom: 22px;
+    }
+    .info-box {
+        background: #f7f8fa;
+        padding: 14px;
+        border-left: 4px solid #4f46e5;
+        margin-top: 12px;
+        border-radius: 4px;
+    }
+
+    .table {
+
+        width: 100%;
+
+        border-collapse: collapse;
+
+        margin-top: 12px;
+
+    }
+
+    .table th, .table td {
+
+        border: 1px solid #dcdcdc;
+
+        padding: 8px;
+
+        text-align: left;
+
+    }
+
+    .badge {
+
+        display: inline-block;
+
+        padding: 4px 8px;
+
+        border-radius: 4px;
+
+        font-size: 12px;
+
+        font-weight: bold;
+
+    }
+
+    .risk-high { background: #ef4444; color: white; }
+
+    .risk-medium { background: #f59e0b; color: white; }
+
+    .risk-low { background: #10b981; color: white; }
+
+
+
+    ul { padding-left: 18px; }
+
+    .footer {
+
+        margin-top: 40px;
+
+        font-size: 12px;
+
+        text-align: center;
+
+        color: #777;
+
+        border-top: 1px solid #e5e5e5;
+
+        padding-top: 12px;
+
+    }
+
+</style>
+
+</head>
+
+<body>
+
+<h1>Email Security Analysis Report</h1>
+
+<p><strong>Date:</strong> {{ now }}</p>
+
+<hr>
+<!-- ===========================
+
+ Sender & Metadata
+
+=========================== -->
+
+<h2>Sender Information</h2>
+
+<div class="info-box">
+
+    <p><strong>Sender:</strong> {{ result.sender }}</p>
+
+    <p><strong>Subject:</strong> {{ result.subject }}</p>
+
+    <p><strong>Overall Score:</strong> {{ result.score }}</p>
+
+    <p><strong>Verdict:</strong>
+
+        {% if "High" in result.verdict %}
+
+            <span class="badge risk-high">High Risk</span>
+
+        {% elif "Medium" in result.verdict %}
+
+            <span class="badge risk-medium">Medium Risk</span>
+
+        {% else %}
+
+            <span class="badge risk-low">Low Risk</span>
+
+        {% endif %}
+
+    </p>
+
+</div>
+<!-- ===========================
+
+ Email Details
+
+=========================== -->
+
+<h2>Detailed Findings</h2>
+
+{% for item in result.details %}
+
+    <div class="section">
+
+        <h3>Finding {{ loop.index }}</h3>
+
+        <p>{{ item.html | safe }}</p>
+
+        <p><strong>Severity:</strong> {{ item.severity|capitalize }}</p>
+
+    </div>
+
+{% endfor %}
+<!-- ===========================
+
+ Authentication Results
+
+=========================== -->
+
+<h2>Authentication Results</h2>
+
+<table class="table">
+
+    <tr>
+
+        <th>Protocol</th>
+
+        <th>Status</th>
+
+        <th>Details</th>
+
+    </tr>
+
+    <tr>
+
+        <td>SPF</td>
+
+        <td>{{ result.domain_analysis.SPF_Status }}</td>
+
+        <td>{{ result.domain_analysis.SPF_Reason if result.domain_analysis.SPF_Reason else "No details" }}</td>
+
+    </tr>
+
+    <tr>
+
+        <td>DKIM</td>
+
+        <td>{{ result.domain_analysis.DKIM_Status }}</td>
+
+        <td>{{ result.domain_analysis.DKIM_Reason if result.domain_analysis.DKIM_Reason else "No details" }}</td>
+
+    </tr>
+
+    <tr>
+
+        <td>DMARC</td>
+
+        <td>{{ result.domain_analysis.DMARC_Status }}</td>
+
+        <td>{{ result.domain_analysis.DMARC_Reason if result.domain_analysis.DMARC_Reason else "No details" }}</td>
+
+    </tr>
+
+</table>
+
+<!-- ===========================
+
+ CVE Section
+
+=========================== -->
+
+<h2>CVE Matches</h2>
+
+{% if result.found_cves and result.found_cves|length > 0 %}
+
+    <table class="table">
+
+        <tr>
+
+            <th>CVE</th>
+
+            <th>Description</th>
+
+        </tr>
+
+        {% for cve in result.found_cves %}
+
+            <tr>
+
+                <td>{{ cve.cve }}</td>
+
+                <td>{{ cve.text if cve.text else "No description available." }}</td>
+
+            </tr>
+
+        {% endfor %}
+
+    </table>
+
+{% else %}
+
+    <p>No CVE entries were detected in the analyzed email body.</p>
+
+{% endif %}
+<!-- ===========================
+
+ VirusTotal Section
+
+=========================== -->
+
+<h2>VirusTotal URL & Domain Analysis</h2>
+
+{% if result.virustotal and result.virustotal|length > 0 %}
+
+<table class="table">
+
+    <tr>
+
+        <th>Domain</th>
+
+        <th>Malicious</th>
+
+        <th>Suspicious</th>
+
+        <th>Harmless</th>
+
+        <th>Undetected</th>
+
+    </tr>
+
+
+
+    {% for vt in result.virustotal %}
+
+    {% set stats = vt.vt.analysis or {} %} <tr>
+
+        <td>{{ vt.domain }}</td>
+
+        <td>{{ stats.malicious or 0 }}</td>
+
+        <td>{{ stats.suspicious or 0 }}</td>
+
+        <td>{{ stats.harmless or 0 }}</td>
+
+        <td>{{ stats.undetected or 0 }}</td>
+
+    </tr>
+
+    {% endfor %}
+
+</table>
+
+{% else %}
+
+<p>No URLs or domains were analyzed.</p>
+
+{% endif %}
+<!-- ===========================
+
+ FOOTER
+
+=========================== -->
+
+<div class="footer">
+
+    Email Analysis Report — Generated by PhishScan<br>
+
+    This report is autogenerated based on heuristic scoring, authentication checks, CVE lookup, and VirusTotal intelligence.
+
+</div>
+
+</body>
+
+</html>
