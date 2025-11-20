@@ -1,4 +1,3 @@
-# app.py (full file)
 import os
 import re
 import json
@@ -11,29 +10,34 @@ from flask import Flask, render_template, request
 from markupsafe import Markup
 import requests
 import tempfile
-import pdfkit
 from flask import send_file
-from datetime import datetime
+# --- CHANGE 1: REMOVE import pdfkit ---
+from weasyprint import HTML # --- CHANGE 2: ADD WeasyPrint import ---
+
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
 CVE_DB_FILENAME = "cve_list.json"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# Ensure the uploads directory exists relative to the app's location
+os.makedirs(os.path.join(os.path.dirname(__file__), UPLOAD_FOLDER), exist_ok=True)
 
 # --- CVE DB (sample)
 def ensure_cve_db(filename=CVE_DB_FILENAME):
     """
     Loads the external CVE list if available.
-    Fallback to the small sample only if the file is missing or unreadable.
+    Fallbacks to the small sample only if the file is missing or unreadable.
     """
     fallback_sample = [
         {"cve": "CVE-2021-44228", "keywords": ["log4j", "log4shell", "jndi", "ldap"], "description": "Log4Shell RCE affecting Log4j."},
         {"cve": "CVE-2023-23397", "keywords": ["outlook reminder", "outlook ntlm"], "description": "NTLM credential leak via Outlook Reminder."}
     ]
 
+    # Handle file path correctly in a portable way
+    file_path = os.path.join(os.path.dirname(__file__), filename)
+    
     # If external file exists → load it
-    if os.path.exists(filename):
+    if os.path.exists(file_path):
         try:
-            with open(filename, "r", encoding="utf-8") as fh:
+            with open(file_path, "r", encoding="utf-8") as fh:
                 data = json.load(fh)
 
                 # Ensure each entry has required fields
@@ -54,7 +58,7 @@ def ensure_cve_db(filename=CVE_DB_FILENAME):
             return fallback_sample
 
     # If missing → create fallback file
-    with open(filename, "w", encoding="utf-8") as fh:
+    with open(file_path, "w", encoding="utf-8") as fh:
         json.dump(fallback_sample, fh, indent=2)
 
     return fallback_sample
@@ -302,13 +306,7 @@ def vt_domain_lookup(domain):
 
 
 # --- (rest of app.py remains as before: parsing bodies, analyzing email, CVE, etc.)
-# For brevity I've included the unchanged parts from your previous app.py and ensured the
-# analyze_eml_file() attaches domain_analysis plus converts reasons to HTML-safe strings.
-
 # reusing helper functions: get_email_body, extract_urls, is_ip, check_cves, classify_severity, etc.
-# (Please keep all helper functions from your existing app.py - they remain unchanged, see prior file)
-
-# Below: minimal implementations reused from previous app.py (copy your existing functions here).
 def get_email_body(msg):
     body = ""
     if msg.is_multipart():
@@ -379,8 +377,6 @@ TRUSTED_DOMAINS = ["gmail.com", "outlook.com", "yahoo.com", "icloud.com", "hotma
 
 def analyze_email(sender, subject, body, attachments, headers):
     # This function is identical to your previous analyze_email (score & details building).
-    # For brevity copy your existing implementation here (it will produce result["details"] list).
-    # After compute, returns {"sender":..., "subject":..., "score":..., "verdict":..., "details": [...]}
     score = 0
     details = []
     sender_domain = (sender.split("@")[-1] if "@" in sender else "unknown").lower()
@@ -516,7 +512,7 @@ def analyze_email(sender, subject, body, attachments, headers):
         })
 
     # 2. Check URL Domains (Existing Logic)
-    urls = extract_urls(body)  # Assuming this was defined earlier, if not, define it here
+    urls = extract_urls(body)
     for url in urls:
         parsed = urlparse(url)
         domain = parsed.netloc.split(":")[0].lower()
@@ -531,10 +527,6 @@ def analyze_email(sender, subject, body, attachments, headers):
             "domain": domain,
             "vt": vt_info
         })
-
-    # =======================================================
-    # FIX: DEFINE AND RETURN THE 'result' DICTIONARY HERE
-    # =======================================================
 
     # 3. Build the base result dict (assuming score, verdict, details, etc. are defined)
     result = {
@@ -601,6 +593,7 @@ def upload_file():
         if file.filename == "":
             return render_template("index.html", error="No file selected.")
         if file and file.filename.lower().endswith(".eml"):
+            # Use os.path.join for portable file path
             file_path = os.path.join(UPLOAD_FOLDER, file.filename)
             file.save(file_path)
             result = analyze_eml_file(file_path)
@@ -617,38 +610,39 @@ def download_report():
     if not data or 'result' not in data:
         return {"error": "Invalid request payload"}, 400
 
-    # The actual analysis data is nested inside the 'result' key
     analysis_result = data.get('result', {})
 
     # SECURITY FIX: Ensure all strings are safe by wrapping them in Markup
-    # This prevents HTML injection in pdf_report.html which uses safe/unescaped variables.
     for key in analysis_result.get('domain_analysis', {}):
         if '_Reason' in key:
             analysis_result['domain_analysis'][key] = Markup(analysis_result['domain_analysis'][key])
 
     for item in analysis_result.get('details', []):
         if 'html' in item:
-             item['html'] = Markup(item['html'])
+              item['html'] = Markup(item['html'])
         if 'text' in item:
-             item['text'] = Markup(item['text'])
+              item['text'] = Markup(item['text'])
 
     # 2. Render HTML using the correctly unwrapped and cleaned data
     from datetime import datetime
     html = render_template("pdf_report.html", result=analysis_result, now=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    # 3. Path to wkhtmltopdf (ensure this path is correct for your system)
-    config = pdfkit.configuration(wkhtmltopdf=r"C:\\Program Files\\wkhtmltopdf\\bin\\wkhtmltopdf.exe")
+    
+    # --- CHANGE 3: Remove pdfkit configuration ---
     try:
+        # --- CHANGE 4: Use WeasyPrint to generate PDF ---
+        pdf_bytes = HTML(string=html).write_pdf()
+
+        # Save to a temporary file for send_file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-            # Setting --enable-local-file-access flag to true might be required, but
-            # this also increases the Local File Disclosure risk. The Command Injection
-            # vulnerability remains due to pdfkit's reliance on shell execution.
-            options = {
-                'quiet': '',  # Suppress wkhtmltopdf output to avoid pipeline buffering issues
-            }
-            timestamp=datetime.now()
-            download_filename = f"email_analysis-{timestamp}.pdf"
-            pdfkit.from_string(html, tmp.name, configuration=config, options=options)
-            return send_file(tmp.name, as_attachment=True, download_name=download_filename)
+            tmp.write(pdf_bytes)
+            tmp_path = tmp.name
+        
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        download_filename = f"email_analysis-{timestamp}.pdf"
+        
+        # Use tmp_path to send the file
+        return send_file(tmp_path, as_attachment=True, download_name=download_filename, mimetype='application/pdf')
+        
     except Exception as e:
         # Crucial for debugging "something went wrong"
         print(f"PDF GENERATION ERROR: {e}")
