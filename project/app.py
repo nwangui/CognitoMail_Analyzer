@@ -483,9 +483,9 @@ def analyze_email(sender, subject, body, attachments, headers):
             text = f"Possible CVE reference: {c['cve']} ({c['keyword']}) - {c.get('description','')}"
             details.append({"text": text, "severity": "critical"})
 
-    if score >= 30:
+    if score >= 100:
         verdict = "🚨 High Risk: Likely Phishing or Spam"
-    elif score >= 12:
+    elif score >= 80:
         verdict = "⚠️ Medium Risk: Suspicious"
     else:
         verdict = "✅ Low Risk: Likely Genuine"
