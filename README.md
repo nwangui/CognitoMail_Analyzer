@@ -48,10 +48,10 @@ pip install -r requirements.txt
 If you have a VirusTotal API Key, set it as an environment variable in your terminal session before starting the app:
 
 
-# Windows
+Windows
 $env:VT_API_KEY="YOUR_API_KEY_HERE"
 
-# macOS / Linux
+macOS / Linux
 export VT_API_KEY="YOUR_API_KEY_HERE"
 5. Run the Application
 
