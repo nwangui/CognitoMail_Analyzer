@@ -389,12 +389,12 @@ def analyze_email(sender, subject, body, attachments, headers):
             details.append({"text": text, "severity": classify_severity(text)})
     for pat in MILD_KEYWORDS:
         if re.search(pat, body_lower):
-            score += 2
+            score += 1
             text = f"Mild keyword matched: {pat}"
             details.append({"text": text, "severity": classify_severity(text)})
 
     if re.search(r"\b(pass(word)?|credit|ssn|confidential|upload id|otp|credential)\b", body_lower):
-        score += 12
+        score += 8
         text = "Request for credentials or personal information detected"
         details.append({"text": text, "severity": classify_severity(text)})
 
@@ -408,19 +408,19 @@ def analyze_email(sender, subject, body, attachments, headers):
             domain = domain.split("@")[-1].split(":")[0]
             tld = '.' + domain.split('.')[-1] if '.' in domain else ''
             if is_ip(domain):
-                score += 10
+                score += 15
                 details.append({"text": f"URL uses IP address as domain: {domain}", "severity": "high"})
             if tld in unusual_tlds:
-                score += 7
+                score += 5
                 details.append({"text": f"Unusual domain extension '{tld}' in URL domain '{domain}'", "severity": "medium"})
             if any(short in domain for short in ["bit.ly", "tinyurl", "t.co", "goo.gl"]):
-                score += 12
+                score += 18
                 details.append({"text": f"Shortened URL detected: {domain}", "severity": "high"})
             if sender_domain not in domain and not any(trust in domain for trust in TRUSTED_DOMAINS):
-                score += 8
+                score += 3
                 details.append({"text": f"URL domain '{domain}' does not match sender domain '{sender_domain}' or trusted domains", "severity": "medium"})
             elif sender_domain != domain:
-                score += 5
+                score += 1
                 details.append({"text": f"Domain mismatch: sender domain '{sender_domain}', URL domain '{domain}'", "severity": "medium"})
 
     soup = BeautifulSoup(body or "", "html.parser")
@@ -428,18 +428,18 @@ def analyze_email(sender, subject, body, attachments, headers):
         vis = a.get_text(strip=True)
         href = a['href']
         if vis and href and vis not in href:
-            score += 7
+            score += 10
             text = f"Hyperlink visible text '{vis}' differs from actual URL '{href}'"
             details.append({"text": text, "severity": classify_severity(text)})
 
     for att in (attachments or []):
         fn = (att or "").lower()
         if any(fn.endswith(ext) for ext in [".exe", ".scr", ".bat", ".cmd", ".js", ".vbs", ".msi", ".lnk"]):
-            score += 14
+            score += 20
             text = f"Suspicious attachment: {att}"
             details.append({"text": text, "severity": "high"})
         if any(g in fn for g in ["invoice", "document", "payment", "urgent", "scan", "statement"]):
-            score += 3
+            score += 1
             text = f"Generic attachment name: {att}"
             details.append({"text": text, "severity": "low"})
 
@@ -454,23 +454,23 @@ def analyze_email(sender, subject, body, attachments, headers):
             details.append({"text": text, "severity": classify_severity(text)})
 
     if sender_domain in TRUSTED_DOMAINS:
-        score -= 10
+        score -= 15
         details.append({"text": f"Sender domain '{sender_domain}' is in trusted list", "severity": "low"})
     else:
-        score += 5
+        score += 3
         details.append({"text": f"Sender domain '{sender_domain}' not trusted", "severity": "low"})
 
     rp = (headers.get("Return-Path") or "").strip()
     rt = (headers.get("Reply-To") or "").strip()
     if rp and rp.lower() != (sender or "").lower():
-        score += 7
+        score += 5
         details.append({"text": f"Return-Path '{rp}' ≠ From '{sender}'", "severity": "medium"})
     if rt and rt.lower() != (sender or "").lower():
-        score += 7
+        score += 10
         details.append({"text": f"Reply-To '{rt}' ≠ From '{sender}'", "severity": "medium"})
 
     if (subject or "").isupper() or "!" in (subject or ""):
-        score += 3
+        score += 1
         details.append({"text": "Subject uses excessive caps/exclamation", "severity": "low"})
     if re.search(r"\burgent|immediately|important|action required\b", (subject or "").lower()):
         score += 5
@@ -478,14 +478,14 @@ def analyze_email(sender, subject, body, attachments, headers):
 
     cves = check_cves(body)
     if cves:
-        score += 15
+        score += 20
         for c in cves:
             text = f"Possible CVE reference: {c['cve']} ({c['keyword']}) - {c.get('description','')}"
             details.append({"text": text, "severity": "critical"})
 
-    if score >= 100:
+    if score >= 35:
         verdict = "🚨 High Risk: Likely Phishing or Spam"
-    elif score >= 80:
+    elif score >= 15:
         verdict = "⚠️ Medium Risk: Suspicious"
     else:
         verdict = "✅ Low Risk: Likely Genuine"
