@@ -418,11 +418,10 @@ def analyze_email(sender, subject, body, attachments, headers):
                 details.append({"text": f"Shortened URL detected: {domain}", "severity": "high"})
             if domain not in unique_domains_in_body:
                 unique_domains_in_body.add(domain)
-
-            if sender_domain not in domain and domain not in TRUSTED_DOMAINS:
+                 if sender_domain not in domain and domain not in TRUSTED_DOMAINS:
                 # Penalty applied only once per unique domain
-                score += 5  # Score of +5 (up from +3) for unique non-trusted domains
-                details.append({"text": f"Unique untrusted domain '{domain}' found in URL.", "severity": "medium"})
+                    score += 5  # Score of +5 (up from +3) for unique non-trusted domains
+                    details.append({"text": f"Unique untrusted domain '{domain}' found in URL.", "severity": "medium"})
 
     soup = BeautifulSoup(body or "", "html.parser")
     for a in soup.find_all('a', href=True):
@@ -479,11 +478,10 @@ def analyze_email(sender, subject, body, attachments, headers):
 
     cves = check_cves(body)
     if cves:
-        score += 25
+        score += 20
         for c in cves:
-        text = f"Possible CVE reference: {c['cve']} ({c['keyword']}) - {c.get('description','')}"
-        # Only add the detail entry; the score is added once above.
-        details.append({"text": text, "severity": "critical"})
+            text = f"Possible CVE reference: {c['cve']} ({c['keyword']}) - {c.get('description','')}"
+            details.append({"text": text, "severity": "critical"})
 
     if score >= 35:
         verdict = "🚨 High Risk: Likely Phishing or Spam"
