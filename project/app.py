@@ -417,7 +417,7 @@ def analyze_email(sender, subject, body, attachments, headers):
                 score += 18
                 details.append({"text": f"Shortened URL detected: {domain}", "severity": "high"})
             if domain not in unique_domains_in_body:
-            unique_domains_in_body.add(domain)
+                unique_domains_in_body.add(domain)
 
             if sender_domain not in domain and domain not in TRUSTED_DOMAINS:
                 # Penalty applied only once per unique domain
