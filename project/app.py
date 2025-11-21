@@ -416,12 +416,13 @@ def analyze_email(sender, subject, body, attachments, headers):
             if any(short in domain for short in ["bit.ly", "tinyurl", "t.co", "goo.gl"]):
                 score += 18
                 details.append({"text": f"Shortened URL detected: {domain}", "severity": "high"})
-            if sender_domain not in domain and not any(trust in domain for trust in TRUSTED_DOMAINS):
-                score += 3
-                details.append({"text": f"URL domain '{domain}' does not match sender domain '{sender_domain}' or trusted domains", "severity": "medium"})
-            elif sender_domain != domain:
-                score += 1
-                details.append({"text": f"Domain mismatch: sender domain '{sender_domain}', URL domain '{domain}'", "severity": "medium"})
+            if domain not in unique_domains_in_body:
+            unique_domains_in_body.add(domain)
+
+            if sender_domain not in domain and domain not in TRUSTED_DOMAINS:
+                # Penalty applied only once per unique domain
+                score += 5  # Score of +5 (up from +3) for unique non-trusted domains
+                details.append({"text": f"Unique untrusted domain '{domain}' found in URL.", "severity": "medium"})
 
     soup = BeautifulSoup(body or "", "html.parser")
     for a in soup.find_all('a', href=True):
@@ -454,7 +455,7 @@ def analyze_email(sender, subject, body, attachments, headers):
             details.append({"text": text, "severity": classify_severity(text)})
 
     if sender_domain in TRUSTED_DOMAINS:
-        score -= 15
+        score -= 20
         details.append({"text": f"Sender domain '{sender_domain}' is in trusted list", "severity": "low"})
     else:
         score += 3
@@ -478,10 +479,11 @@ def analyze_email(sender, subject, body, attachments, headers):
 
     cves = check_cves(body)
     if cves:
-        score += 20
+        score += 25
         for c in cves:
-            text = f"Possible CVE reference: {c['cve']} ({c['keyword']}) - {c.get('description','')}"
-            details.append({"text": text, "severity": "critical"})
+        text = f"Possible CVE reference: {c['cve']} ({c['keyword']}) - {c.get('description','')}"
+        # Only add the detail entry; the score is added once above.
+        details.append({"text": text, "severity": "critical"})
 
     if score >= 35:
         verdict = "🚨 High Risk: Likely Phishing or Spam"
