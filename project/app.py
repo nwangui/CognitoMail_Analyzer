@@ -108,12 +108,12 @@ def extract_domains(headers):
     from_h = headers.get("From", "") or ""
     m = re.search(r'@([\w\.-]+)', from_h)
     if m:
-        domains["From_Domain"] = m.group(1).lower()
+        domains["From_Domain"] = m.group(1).lower().rstrip('>')
 
     rp = headers.get("Return-Path", "") or ""
     m = re.search(r'@([\w\.-]+)', rp)
     if m:
-        domains["Return_Path_Domain"] = m.group(1).lower()
+        domains["Return_Path_Domain"] = m.group(1).lower().rstrip('>')
 
     auth = headers.get("Authentication-Results", "") or ""
 
