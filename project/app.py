@@ -271,7 +271,7 @@ def analyze_domains(domains):
 
 
 # --- SECURE: Get API key from environment, fail safely if not found ---
-VT_API_KEY = os.getenv("VT_API_KEY")
+VT_API_KEY = os.getenv("945a5b5e9f50483182841c3445de8a50c4282c3173b3991498b024f5920a1912")
 
 
 def vt_domain_lookup(domain):
