@@ -16,7 +16,6 @@
       padding-right: 15px; /* Add some space to avoid content hitting the scrollbar */
       margin-top: 10px;
     }
-    /* ⬅️ FIX 1: The opening curly brace below was inside the .scroll-container style block */
     *{box-sizing:border-box}
     body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,var(--bg-1),var(--bg-2));color:#e6eef8;min-height:100vh;padding:18px;overflow:auto}
     .cyber-grid { position:fixed; inset:0; z-index:0; pointer-events:none; --g:60px;
@@ -208,11 +207,13 @@
               <tr>
                 <th>CVE</th>
                 <th>Description</th>
+                <th>Source Detail</th>
               </tr>
               {% for cve in result.found_cves %}
                 <tr>
                   <td class="cve-critical">{{ cve.cve }}</td>
                   <td class="cve-info">{{ cve.text }}</td>
+                  <td>{{ cve.html | safe }}</td>
                 </tr>
               {% endfor %}
             </table>
@@ -258,66 +259,77 @@
 
         <div style="margin-top:12px">
           <h4 style="margin:0 0 6px 0">Notes</h4>
-          <div class="small" style="color:var(--muted)">SPF/DKIM pass can still be abused if attackers use legitimate provider infrastructure. DMARC alignment + details matter more.</div>
+          <div class="small" style="color:var(--muted)">SPF/DKIM pass can still be abused if attackers use legitimate provider infrastructure. DMARC alignment + details matter more. NOTE - Risk score criteria - >25 - high risk, >12 - medium risk, <12 - low risk</div>
         </div>
       </div>
     </aside>
   </div>
 
   <script>
-      // theme toggle
-      const toggleBtn = document.getElementById('themeToggle');
-      toggleBtn.addEventListener('click', () => {
-          const root = document.documentElement;
-          root.classList.toggle('light');
-          if (root.classList.contains('light')) localStorage.setItem('phish_theme', 'light'); else localStorage.removeItem('phish_theme');
-      });
-      if (localStorage.getItem('phish_theme') === 'light') {
-          document.documentElement.classList.add('light');
-      }
+    // theme toggle
+    const toggleBtn = document.getElementById('themeToggle');
+    toggleBtn.addEventListener('click', () => {
+        const root = document.documentElement;
+        root.classList.toggle('light');
+        if (root.classList.contains('light')) localStorage.setItem('phish_theme', 'light'); else localStorage.removeItem('phish_theme');
+    });
+    if (localStorage.getItem('phish_theme') === 'light') {
+        document.documentElement.classList.add('light');
+    }
 
-      // helpers
-      function toggle(id) {
-          const el = document.getElementById(id);
-          if (!el) return;
-          el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none';
-      }
+    // helpers
+    function toggle(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.style.display = (el.style.display === 'none' || el.style.display === '') ? 'block' : 'none';
+    }
 
-      function copySummary() {
-          try {
-              const score = "{{ result.score }}";
-              const verdict = "{{ result.verdict }}";
-              const sender = `{{ result.sender }}`;
-              const subject = `{{ result.subject }}`;
-              let details = [];
-              // Use querySelectorAll on the list items
-              document.querySelectorAll('#detailsList .detail-content p').forEach(p => details.push(p.innerText.trim()));
-              const txt = `Sender: ${sender}\nSubject: ${subject}\nScore: ${score}\nVerdict: ${verdict}\n\nDetails:\n- ${details.join('\n- ')}`;
-              navigator.clipboard.writeText(txt).then(() => alert('Summary copied to clipboard'));
-          } catch (e) {
-              alert('Copy failed');
-          }
-      }
+    function copySummary() {
+        try {
+            const score = "{{ result.score }}";
+            const verdict = "{{ result.verdict }}";
+            const sender = `{{ result.sender }}`;
+            const subject = `{{ result.subject }}`;
+            let details = [];
+            // Use querySelectorAll on the list items
+            document.querySelectorAll('#detailsList .detail-content p').forEach(p => details.push(p.innerText.trim()));
+            const txt = `Sender: ${sender}\nSubject: ${subject}\nScore: ${score}\nVerdict: ${verdict}\n\nDetails:\n- ${details.join('\n- ')}`;
+            navigator.clipboard.writeText(txt).then(() => alert('Summary copied to clipboard'));
+        } catch (e) {
+            alert('Copy failed');
+        }
+    }
 
-      function downloadPDF() {
-          fetch("/download-report", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              // IMPORTANT: The result|tojson must be wrapped in another pair of braces
-              // if it is the value of a key in a JSON object passed to the body.
-              body: JSON.stringify({ result: {{ result | tojson }} })
-          })
-          .then(res => res.blob())
-          .then(blob => {
-              const url = window.URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              // ⬅️ CRITICAL: If the dynamic filename fix didn't work, this default
-              // filename will be used. It should be handled by the server's send_file.
-              a.download = "email_report.pdf";
-              a.click();
-          });
-      }
+    function downloadPDF() {
+        // FIX: Construct the JavaScript object using {{ result | tojson }} which renders the Python dict as a valid JSON string.
+        const payload = { result: {{ result | tojson }} };
+
+        fetch("/download-report", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            // Stringify the resulting JavaScript object
+            body: JSON.stringify(payload)
+        })
+        .then(res => {
+            // Check for non-200 responses and throw error if needed
+            if (!res.ok) {
+                // Read the response text to get the server-side error message
+                return res.text().then(text => { throw new Error(text || 'PDF download failed due to server error.'); });
+            }
+            return res.blob();
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "email_report.pdf"; // Fallback filename
+            a.click();
+            window.URL.revokeObjectURL(url); // Clean up the object URL
+        })
+        .catch(error => {
+            alert(`Download failed: ${error.message}`);
+        });
+    }
   </script>
 </body>
 </html>
