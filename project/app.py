@@ -11,14 +11,15 @@ from markupsafe import Markup
 import requests
 import tempfile
 from flask import send_file
-# --- CHANGE 1: REMOVE import pdfkit ---
-from weasyprint import HTML # --- CHANGE 2: ADD WeasyPrint import ---
+from weasyprint import HTML 
+from datetime import datetime # Import datetime here for report generation
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
 CVE_DB_FILENAME = "cve_list.json"
 # Ensure the uploads directory exists relative to the app's location
 os.makedirs(os.path.join(os.path.dirname(__file__), UPLOAD_FOLDER), exist_ok=True)
+
 
 # --- CVE DB (sample)
 def ensure_cve_db(filename=CVE_DB_FILENAME):
@@ -27,13 +28,15 @@ def ensure_cve_db(filename=CVE_DB_FILENAME):
     Fallbacks to the small sample only if the file is missing or unreadable.
     """
     fallback_sample = [
-        {"cve": "CVE-2021-44228", "keywords": ["log4j", "log4shell", "jndi", "ldap"], "description": "Log4Shell RCE affecting Log4j."},
-        {"cve": "CVE-2023-23397", "keywords": ["outlook reminder", "outlook ntlm"], "description": "NTLM credential leak via Outlook Reminder."}
+        {"cve": "CVE-2021-44228", "keywords": ["log4j", "log4shell", "jndi", "ldap"],
+         "description": "Log4Shell RCE affecting Log4j."},
+        {"cve": "CVE-2023-23397", "keywords": ["outlook reminder", "outlook ntlm"],
+         "description": "NTLM credential leak via Outlook Reminder."}
     ]
 
     # Handle file path correctly in a portable way
     file_path = os.path.join(os.path.dirname(__file__), filename)
-    
+
     # If external file exists → load it
     if os.path.exists(file_path):
         try:
@@ -73,15 +76,18 @@ RISKY_WORDS = [
     "pay now", "bank account", "credit card", "login immediately"
 ]
 
+
 def server_highlight(text):
     if not text:
         return Markup("")
     s = str(text)
     url_pattern = re.compile(r'(https?://[^\s<>]+)')
+
     def url_repl(m):
         url = m.group(1)
         display = url if len(url) <= 80 else url[:77] + "..."
         return f"<a class='link' href='{url}' target='_blank' rel='noopener noreferrer'>{display}</a>"
+
     s = url_pattern.sub(url_repl, s)
     for w in sorted(RISKY_WORDS, key=len, reverse=True):
         s = re.sub(r'(?i)\b' + re.escape(w) + r'\b',
@@ -89,18 +95,23 @@ def server_highlight(text):
                    s)
     return Markup(s)
 
+
 app.jinja_env.filters['server_highlight'] = server_highlight
+
 
 # --- severity classifier (same as before)
 def classify_severity(text):
     t = (text or "").lower()
     if any(x in t for x in ["credential", "password", "ssn", "ransom", "remote code execution", "cve", "exploit"]):
         return "critical"
-    if any(x in t for x in [".exe", ".js", ".vbs", ".msi", "shortened url", "ip address as domain", "suspicious attachment"]):
+    if any(x in t for x in
+           [".exe", ".js", ".vbs", ".msi", "shortened url", "ip address as domain", "suspicious attachment"]):
         return "high"
-    if any(x in t for x in ["domain mismatch", "does not match", "return-path", "reply-to", "urgent", "verify", "alert"]):
+    if any(x in t for x in
+           ["domain mismatch", "does not match", "return-path", "reply-to", "urgent", "verify", "alert"]):
         return "medium"
     return "low"
+
 
 # --- extract domains & authentication results
 def extract_domains(headers):
@@ -134,6 +145,7 @@ def extract_domains(headers):
         domains["DMARC_Domain"] = dmarc_d.group(1).lower()
 
     return domains
+
 
 # --- analyze domains with clear reasons
 def analyze_domains(domains):
@@ -258,14 +270,18 @@ def analyze_domains(domains):
     return analysis
 
 
-VT_API_KEY = os.getenv("VT_API_KEY", "945a5b5e9f50483182841c3445de8a50c4282c3173b3991498b024f5920a1912")
+# --- SECURE: Get API key from environment, fail safely if not found ---
+VT_API_KEY = os.getenv("VT_API_KEY")
+
 
 def vt_domain_lookup(domain):
     """
     Queries VirusTotal for domain reputation & analysis stats.
     Returns dict with safe fields for display.
     """
-
+    if not VT_API_KEY:
+        return {"error": "VT API key not configured in environment."}
+        
     if not domain:
         return {"error": "No domain provided"}
 
@@ -305,8 +321,6 @@ def vt_domain_lookup(domain):
         return {"error": str(e)}
 
 
-# --- (rest of app.py remains as before: parsing bodies, analyzing email, CVE, etc.)
-# reusing helper functions: get_email_body, extract_urls, is_ip, check_cves, classify_severity, etc.
 def get_email_body(msg):
     body = ""
     if msg.is_multipart():
@@ -317,8 +331,10 @@ def get_email_body(msg):
             payload = part.get_payload(decode=True)
             if not payload:
                 continue
-            try: text = payload.decode(errors="ignore")
-            except Exception: text = str(payload)
+            try:
+                text = payload.decode(errors="ignore")
+            except Exception:
+                text = str(payload)
             if part.get_content_type() == "text/html":
                 body += BeautifulSoup(text, "html.parser").get_text()
             else:
@@ -326,18 +342,22 @@ def get_email_body(msg):
     else:
         payload = msg.get_payload(decode=True)
         if payload:
-            try: text = payload.decode(errors="ignore")
-            except Exception: text = str(payload)
+            try:
+                text = payload.decode(errors="ignore")
+            except Exception:
+                text = str(payload)
             if msg.get_content_type() == "text/html":
                 body = BeautifulSoup(text, "html.parser").get_text()
             else:
                 body = text
     return body or ""
 
+
 def extract_urls(text):
     if not text:
         return []
     return re.findall(r'https?://[^\s"<>]+', text)
+
 
 def is_ip(host):
     try:
@@ -346,6 +366,7 @@ def is_ip(host):
         return True
     except Exception:
         return False
+
 
 def check_cves(text):
     found = []
@@ -373,15 +394,31 @@ PHISHING_KEYWORDS = [
     r"urgent wire transfer", r"secret account"
 ]
 MILD_KEYWORDS = [r"\blogin\b", r"\bupdate\b", r"\baccount\b", r"\bverify\b", r"\balert\b"]
-TRUSTED_DOMAINS = ["gmail.com", "outlook.com", "yahoo.com", "icloud.com", "hotmail.com", "microsoft.com", "apple.com"]
+TRUSTED_DOMAINS = ["gmail.com", "outlook.com", "yahoo.com", "icloud.com", "hotmail.com", "microsoft.com", "apple.com", "google.com", "mdx.ac.ae", "mdx.ac.uk", "mdx.jotform.com"]
+
 
 def analyze_email(sender, subject, body, attachments, headers):
-    # This function is identical to your previous analyze_email (score & details building).
+    # Initialize variables
     score = 0
     details = []
-    sender_domain = (sender.split("@")[-1] if "@" in sender else "unknown").lower()
+    # --- FIX 1: Clean Sender Domain upon extraction to remove trailing '>' or space/non-domain characters
+    sender_domain = (sender.split("@")[-1] if "@" in sender else "unknown").lower().rstrip('>').strip()
     body_lower = (body or "").lower()
 
+    # --- UNIQUE SCORING FLAGS INIT ---
+    scored_for_ip = False
+    scored_for_unusual_tld = False
+    scored_for_shortened_url = False
+    scored_for_sender_domain_mismatch = False
+    scored_for_visual_href_mismatch = False
+    scored_for_suspicious_attachment = False
+    scored_for_generic_attachment = False
+    scored_for_display_mismatch = False
+    scored_for_return_path_mismatch = False
+    scored_for_reply_to_mismatch = False
+    scored_for_vt_sender = False
+
+    # Standard Phishing Keyword Checks
     for pat in PHISHING_KEYWORDS:
         if re.search(pat, body_lower):
             score += 10
@@ -398,77 +435,112 @@ def analyze_email(sender, subject, body, attachments, headers):
         text = "Request for credentials or personal information detected"
         details.append({"text": text, "severity": classify_severity(text)})
 
+    # --- URL ANALYSIS (With Unique Scoring) ---
     urls = extract_urls(body)
     if urls:
         details.append({"text": f"URLs detected: {', '.join(urls)}", "severity": "medium"})
         unusual_tlds = ['.tk', '.ru', '.cn', '.xyz', '.top', '.biz', '.info']
         for url in urls:
             parsed = urlparse(url)
-            domain = (parsed.netloc or "").lower()
-            domain = domain.split("@")[-1].split(":")[0]
-            tld = '.' + domain.split('.')[-1] if '.' in domain else ''
-            if is_ip(domain):
-                score += 10
-                details.append({"text": f"URL uses IP address as domain: {domain}", "severity": "high"})
-            if tld in unusual_tlds:
-                score += 7
-                details.append({"text": f"Unusual domain extension '{tld}' in URL domain '{domain}'", "severity": "medium"})
-            if any(short in domain for short in ["bit.ly", "tinyurl", "t.co", "goo.gl"]):
-                score += 12
-                details.append({"text": f"Shortened URL detected: {domain}", "severity": "high"})
-            if sender_domain not in domain and not any(trust in domain for trust in TRUSTED_DOMAINS):
-                score += 8
-                details.append({"text": f"URL domain '{domain}' does not match sender domain '{sender_domain}' or trusted domains", "severity": "medium"})
-            elif sender_domain != domain:
-                score += 5
-                details.append({"text": f"Domain mismatch: sender domain '{sender_domain}', URL domain '{domain}'", "severity": "medium"})
+            # Ensure URL domain is clean
+            domain = parsed.netloc.split(":")[0].lower().rstrip('>').strip()
 
+            # 1. IP Address as Domain
+            if is_ip(domain) and not scored_for_ip:
+                score += 10
+                details.append({"text": f"URL uses IP address as domain: {domain} (First instance)", "severity": "high"})
+                scored_for_ip = True
+
+            # 2. Unusual TLD
+            tld = '.' + domain.split('.')[-1] if '.' in domain else ''
+            if tld in unusual_tlds and not scored_for_unusual_tld:
+                score += 7
+                details.append(
+                    {"text": f"Unusual domain extension '{tld}' in URL domain '{domain}' (First instance)", "severity": "medium"})
+                scored_for_unusual_tld = True
+
+            # 3. Shortened URL
+            if any(short in domain for short in ["bit.ly", "tinyurl", "t.co", "goo.gl"]) and not scored_for_shortened_url:
+                score += 12
+                details.append({"text": f"Shortened URL detected: {domain} (First instance)", "severity": "high"})
+                scored_for_shortened_url = True
+
+            # 4. URL Domain Mismatch (Check against sender_domain)
+            # Score added only if sender domain is not in the URL domain
+            if sender_domain and sender_domain not in domain and not any(trust in domain for trust in TRUSTED_DOMAINS) and not scored_for_sender_domain_mismatch:
+                score += 8
+                details.append(
+                    {"text": f"URL domain '{domain}' does not match sender domain '{sender_domain}' or trusted domains (First instance)",
+                     "severity": "medium"})
+                scored_for_sender_domain_mismatch = True
+            elif sender_domain and sender_domain != domain and not scored_for_sender_domain_mismatch: # Less severe mismatch, scored only once
+                score += 5
+                details.append({"text": f"Domain mismatch: sender domain '{sender_domain}', URL domain '{domain}' (First instance)",
+                                "severity": "medium"})
+                scored_for_sender_domain_mismatch = True
+
+    # --- VISUAL VS ACTUAL URL MISMATCH (Unique Scoring) ---
     soup = BeautifulSoup(body or "", "html.parser")
     for a in soup.find_all('a', href=True):
         vis = a.get_text(strip=True)
         href = a['href']
-        if vis and href and vis not in href:
+        if vis and href and vis not in href and not scored_for_visual_href_mismatch:
             score += 7
-            text = f"Hyperlink visible text '{vis}' differs from actual URL '{href}'"
+            text = f"Hyperlink visible text '{vis}' differs from actual URL '{href}' (First instance)"
             details.append({"text": text, "severity": classify_severity(text)})
+            scored_for_visual_href_mismatch = True
 
+    # --- ATTACHMENTS (Unique Scoring) ---
     for att in (attachments or []):
         fn = (att or "").lower()
-        if any(fn.endswith(ext) for ext in [".exe", ".scr", ".bat", ".cmd", ".js", ".vbs", ".msi", ".lnk"]):
+        if any(fn.endswith(ext) for ext in [".exe", ".scr", ".bat", ".cmd", ".js", ".vbs", ".msi", ".lnk"]) and not scored_for_suspicious_attachment:
             score += 14
-            text = f"Suspicious attachment: {att}"
+            text = f"Suspicious attachment: {att} (First instance)"
             details.append({"text": text, "severity": "high"})
-        if any(g in fn for g in ["invoice", "document", "payment", "urgent", "scan", "statement"]):
+            scored_for_suspicious_attachment = True
+            
+        if any(g in fn for g in ["invoice", "document", "payment", "urgent", "scan", "statement"]) and not scored_for_generic_attachment:
             score += 3
-            text = f"Generic attachment name: {att}"
+            text = f"Generic attachment name: {att} (First instance)"
             details.append({"text": text, "severity": "low"})
+            scored_for_generic_attachment = True
 
+    # --- DISPLAY NAME MISMATCH (Unique Scoring) ---
     m = re.match(r'(.+?)\s*<(.+?)>', sender or "")
-    if m:
+    if m and not scored_for_display_mismatch:
         display = m.group(1).strip()
         email_addr = m.group(2).strip()
         local = email_addr.split('@')[0].lower()
-        if display.replace(" ","").lower() not in local:
+        if display.replace(" ", "").lower() not in local:
             score += 7
             text = f"Display name '{display}' doesn't match email local part '{local}'"
             details.append({"text": text, "severity": classify_severity(text)})
+            scored_for_display_mismatch = True
 
+    # --- SENDER TRUST CHECK (Once) ---
     if sender_domain in TRUSTED_DOMAINS:
         score -= 10
         details.append({"text": f"Sender domain '{sender_domain}' is in trusted list", "severity": "low"})
-    else:
+    elif sender_domain != "unknown":
         score += 5
         details.append({"text": f"Sender domain '{sender_domain}' not trusted", "severity": "low"})
 
+    # --- RETURN-PATH/REPLY-TO MISMATCH (Unique Scoring) ---
     rp = (headers.get("Return-Path") or "").strip()
     rt = (headers.get("Reply-To") or "").strip()
-    if rp and rp.lower() != (sender or "").lower():
+    sender_clean = (sender or "").lower().strip()
+    
+    if rp and rp.lower().rstrip('>') != sender_clean and not scored_for_return_path_mismatch:
         score += 7
         details.append({"text": f"Return-Path '{rp}' ≠ From '{sender}'", "severity": "medium"})
-    if rt and rt.lower() != (sender or "").lower():
+        scored_for_return_path_mismatch = True
+        
+    if rt and rt.lower().rstrip('>') != sender_clean and not scored_for_reply_to_mismatch:
         score += 7
         details.append({"text": f"Reply-To '{rt}' ≠ From '{sender}'", "severity": "medium"})
+        scored_for_reply_to_mismatch = True
 
+    # --- SUBJECT LINE CHECKS ---
     if (subject or "").isupper() or "!" in (subject or ""):
         score += 3
         details.append({"text": "Subject uses excessive caps/exclamation", "severity": "low"})
@@ -476,16 +548,18 @@ def analyze_email(sender, subject, body, attachments, headers):
         score += 5
         details.append({"text": "Urgent or scare-tactic subject line", "severity": "medium"})
 
+    # --- CVE CHECK ---
     cves = check_cves(body)
     if cves:
         score += 15
         for c in cves:
-            text = f"Possible CVE reference: {c['cve']} ({c['keyword']}) - {c.get('description','')}"
+            text = f"Possible CVE reference: {c['cve']} ({c['keyword']}) - {c.get('description', '')}"
             details.append({"text": text, "severity": "critical"})
 
-    if score >= 30:
+    # --- FINAL VERDICT (REVISED THRESHOLDS) ---
+    if score >= 25: 
         verdict = "🚨 High Risk: Likely Phishing or Spam"
-    elif score >= 12:
+    elif score >= 10: 
         verdict = "⚠️ Medium Risk: Suspicious"
     else:
         verdict = "✅ Low Risk: Likely Genuine"
@@ -494,17 +568,17 @@ def analyze_email(sender, subject, body, attachments, headers):
     vt_results = []
 
     # 1. Check Sender Domain (New Logic)
-    # Cleanly extracts the domain, converts to lowercase, and then strips the trailing '>'
-    sender_domain = (sender.split("@")[-1] if "@" in sender else "unknown").lower().rstrip('>')
-
     if sender_domain and sender_domain not in TRUSTED_DOMAINS and sender_domain != "unknown":
         vt_info = vt_domain_lookup(sender_domain)
         # Check if the domain is already marked as suspicious/malicious by VT
         analysis_stats = vt_info.get("analysis", {})
-        if analysis_stats.get("malicious", 0) > 0 or analysis_stats.get("suspicious", 0) > 0:
+        
+        # --- FIX 2: Unique Scoring for VT-flagged sender domain ---
+        if (analysis_stats.get("malicious", 0) > 0 or analysis_stats.get("suspicious", 0) > 0) and not scored_for_vt_sender:
             score += 15  # High risk score for VT-flagged sender domain
             text = f"Sender domain '{sender_domain}' flagged by VirusTotal (Malicious: {analysis_stats.get('malicious', 0)}, Suspicious: {analysis_stats.get('suspicious', 0)})"
             details.append({"text": text, "severity": "critical"})
+            scored_for_vt_sender = True
 
         vt_results.append({
             "domain": sender_domain,
@@ -512,21 +586,21 @@ def analyze_email(sender, subject, body, attachments, headers):
         })
 
     # 2. Check URL Domains (Existing Logic)
+    checked_domains = {item["domain"] for item in vt_results} # Use a set to prevent re-checking
     urls = extract_urls(body)
     for url in urls:
         parsed = urlparse(url)
-        domain = parsed.netloc.split(":")[0].lower()
-        domain = domain.rstrip('>') # Clean the extracted domain, removing '>' if it exists at the end
-        if domain in [item["domain"] for item in vt_results]:  # Skip if sender domain was already checked
+        domain = parsed.netloc.split(":")[0].lower().rstrip('>').strip() # Clean the extracted domain
+        
+        if not domain or domain in checked_domains:
             continue
-
-        # ... (existing scoring logic for IP/shortened URLs) ...
-
+        
         vt_info = vt_domain_lookup(domain)
         vt_results.append({
             "domain": domain,
             "vt": vt_info
         })
+        checked_domains.add(domain)
 
     # 3. Build the base result dict (assuming score, verdict, details, etc. are defined)
     result = {
@@ -539,9 +613,7 @@ def analyze_email(sender, subject, body, attachments, headers):
 
     # 4. Attach VirusTotal and CVE results
     result["virustotal"] = vt_results
-    # Note: You need to ensure 'found_cves' is also defined and attached if used later
-    # result["found_cves"] = found_cves
-
+    
     # 5. Return the result
     return result
 
@@ -554,7 +626,8 @@ def analyze_eml_file(file_path):
     subject = msg.get("Subject", "No Subject") or "No Subject"
     body = get_email_body(msg)
     attachments = [p.get_filename() for p in msg.iter_attachments() if p.get_filename()]
-    headers = {"From": msg.get("From",""), "Return-Path": msg.get("Return-Path",""), "Reply-To": msg.get("Reply-To",""), "Authentication-Results": msg.get("Authentication-Results","")}
+    headers = {"From": msg.get("From", ""), "Return-Path": msg.get("Return-Path", ""),
+               "Reply-To": msg.get("Reply-To", ""), "Authentication-Results": msg.get("Authentication-Results", "")}
     domains = extract_domains(headers)
     domain_analysis = analyze_domains(domains)
     result = analyze_email(sender, subject, body, attachments, headers)
@@ -567,9 +640,9 @@ def analyze_eml_file(file_path):
     domain_analysis["Details_HTML"] = [server_highlight(x) for x in domain_analysis["Details"]]
 
     # also prepare reason HTML-safe
-    domain_analysis["SPF_Reason_HTML"] = server_highlight(domain_analysis.get("SPF_Reason",""))
-    domain_analysis["DKIM_Reason_HTML"] = server_highlight(domain_analysis.get("DKIM_Reason",""))
-    domain_analysis["DMARC_Reason_HTML"] = server_highlight(domain_analysis.get("DMARC_Reason",""))
+    domain_analysis["SPF_Reason_HTML"] = server_highlight(domain_analysis.get("SPF_Reason", ""))
+    domain_analysis["DKIM_Reason_HTML"] = server_highlight(domain_analysis.get("DKIM_Reason", ""))
+    domain_analysis["DMARC_Reason_HTML"] = server_highlight(domain_analysis.get("DMARC_Reason", ""))
 
     # build found_cves as before
     found_cves = []
@@ -583,8 +656,9 @@ def analyze_eml_file(file_path):
 
     return result
 
+
 # routes
-@app.route("/", methods=["GET","POST"])
+@app.route("/", methods=["GET", "POST"])
 def upload_file():
     if request.method == "POST":
         if "file" not in request.files:
@@ -619,34 +693,38 @@ def download_report():
 
     for item in analysis_result.get('details', []):
         if 'html' in item:
-              item['html'] = Markup(item['html'])
+            item['html'] = Markup(item['html'])
         if 'text' in item:
-              item['text'] = Markup(item['text'])
+            item['text'] = Markup(item['text'])
 
     # 2. Render HTML using the correctly unwrapped and cleaned data
-    from datetime import datetime
-    html = render_template("pdf_report.html", result=analysis_result, now=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     
-    # --- CHANGE 3: Remove pdfkit configuration ---
+    html = render_template("pdf_report.html", result=analysis_result, now=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+
     try:
-        # --- CHANGE 4: Use WeasyPrint to generate PDF ---
+        # Use WeasyPrint to generate PDF
         pdf_bytes = HTML(string=html).write_pdf()
 
         # Save to a temporary file for send_file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
             tmp.write(pdf_bytes)
             tmp_path = tmp.name
-        
+
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         download_filename = f"email_analysis-{timestamp}.pdf"
-        
+
         # Use tmp_path to send the file
         return send_file(tmp_path, as_attachment=True, download_name=download_filename, mimetype='application/pdf')
-        
+
     except Exception as e:
         # Crucial for debugging "something went wrong"
         print(f"PDF GENERATION ERROR: {e}")
         return f"Error generating PDF: {e}", 500
+
+
+# --- REMOVE DEVELOPMENT SERVER FOR PRODUCTION (Render) ---
+# if __name__ == "__main__":
+#     app.run(debug=True)
 
 
 if __name__ == "__main__":
