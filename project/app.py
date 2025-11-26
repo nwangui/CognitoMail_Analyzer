@@ -442,6 +442,7 @@ def analyze_email(sender, subject, body, attachments, headers):
         unusual_tlds = ['.tk', '.ru', '.cn', '.xyz', '.top', '.biz', '.info']
         for url in urls:
             parsed = urlparse(url)
+<<<<<<< HEAD
             # Ensure URL domain is clean
             domain = parsed.netloc.split(":")[0].lower().rstrip('>').strip()
 
@@ -452,6 +453,14 @@ def analyze_email(sender, subject, body, attachments, headers):
                 scored_for_ip = True
 
             # 2. Unusual TLD
+=======
+<<<<<<< HEAD
+            # Ensure URL domain is clean
+            domain = parsed.netloc.split(":")[0].lower().rstrip('>').strip()
+=======
+            domain = (parsed.netloc or "").lower()
+            domain = domain.split("@")[-1].split(":")[0]
+>>>>>>> ba37c5075851222e36a70e89f2adfc40bc14054e
             tld = '.' + domain.split('.')[-1] if '.' in domain else ''
             if is_ip(domain):
                 score += 10
@@ -468,21 +477,76 @@ def analyze_email(sender, subject, body, attachments, headers):
             elif sender_domain != domain:
                 score += 5
                 details.append({"text": f"Domain mismatch: sender domain '{sender_domain}', URL domain '{domain}'", "severity": "medium"})
+>>>>>>> 8115a2d58adbb57654b1bbfcb9fdbb0c6797a976
 
+<<<<<<< HEAD
+=======
+            # 1. IP Address as Domain
+            if is_ip(domain) and not scored_for_ip:
+                score += 10
+                details.append({"text": f"URL uses IP address as domain: {domain} (First instance)", "severity": "high"})
+                scored_for_ip = True
+
+            # 2. Unusual TLD
+            tld = '.' + domain.split('.')[-1] if '.' in domain else ''
+            if tld in unusual_tlds and not scored_for_unusual_tld:
+                score += 7
+                details.append(
+                    {"text": f"Unusual domain extension '{tld}' in URL domain '{domain}' (First instance)", "severity": "medium"})
+                scored_for_unusual_tld = True
+
+            # 3. Shortened URL
+            if any(short in domain for short in ["bit.ly", "tinyurl", "t.co", "goo.gl"]) and not scored_for_shortened_url:
+                score += 12
+                details.append({"text": f"Shortened URL detected: {domain} (First instance)", "severity": "high"})
+                scored_for_shortened_url = True
+
+            # 4. URL Domain Mismatch (Check against sender_domain)
+            # Score added only if sender domain is not in the URL domain
+            if sender_domain and sender_domain not in domain and not any(trust in domain for trust in TRUSTED_DOMAINS) and not scored_for_sender_domain_mismatch:
+                score += 8
+                details.append(
+                    {"text": f"URL domain '{domain}' does not match sender domain '{sender_domain}' or trusted domains (First instance)",
+                     "severity": "medium"})
+                scored_for_sender_domain_mismatch = True
+            elif sender_domain and sender_domain != domain and not scored_for_sender_domain_mismatch: # Less severe mismatch, scored only once
+                score += 5
+                details.append({"text": f"Domain mismatch: sender domain '{sender_domain}', URL domain '{domain}' (First instance)",
+                                "severity": "medium"})
+                scored_for_sender_domain_mismatch = True
+
+>>>>>>> ba37c5075851222e36a70e89f2adfc40bc14054e
     # --- VISUAL VS ACTUAL URL MISMATCH (Unique Scoring) ---
     soup = BeautifulSoup(body or "", "html.parser")
     for a in soup.find_all('a', href=True):
         vis = a.get_text(strip=True)
         href = a['href']
+<<<<<<< HEAD
+        if vis and href and vis not in href and not scored_for_visual_href_mismatch:
+            score += 7
+            text = f"Hyperlink visible text '{vis}' differs from actual URL '{href}' (First instance)"
+=======
         if vis and href and vis not in href:
             score += 7
             text = f"Hyperlink visible text '{vis}' differs from actual URL '{href}'"
+>>>>>>> 8115a2d58adbb57654b1bbfcb9fdbb0c6797a976
             details.append({"text": text, "severity": classify_severity(text)})
             scored_for_visual_href_mismatch = True
 
     # --- ATTACHMENTS (Unique Scoring) ---
     for att in (attachments or []):
         fn = (att or "").lower()
+<<<<<<< HEAD
+        if any(fn.endswith(ext) for ext in [".exe", ".scr", ".bat", ".cmd", ".js", ".vbs", ".msi", ".lnk"]) and not scored_for_suspicious_attachment:
+            score += 14
+            text = f"Suspicious attachment: {att} (First instance)"
+            details.append({"text": text, "severity": "high"})
+            scored_for_suspicious_attachment = True
+            
+        if any(g in fn for g in ["invoice", "document", "payment", "urgent", "scan", "statement"]) and not scored_for_generic_attachment:
+            score += 3
+            text = f"Generic attachment name: {att} (First instance)"
+=======
         if any(fn.endswith(ext) for ext in [".exe", ".scr", ".bat", ".cmd", ".js", ".vbs", ".msi", ".lnk"]):
             score += 14
             text = f"Suspicious attachment: {att}"
@@ -490,6 +554,7 @@ def analyze_email(sender, subject, body, attachments, headers):
         if any(g in fn for g in ["invoice", "document", "payment", "urgent", "scan", "statement"]):
             score += 3
             text = f"Generic attachment name: {att}"
+>>>>>>> 8115a2d58adbb57654b1bbfcb9fdbb0c6797a976
             details.append({"text": text, "severity": "low"})
             scored_for_generic_attachment = True
 
@@ -509,18 +574,43 @@ def analyze_email(sender, subject, body, attachments, headers):
     if sender_domain in TRUSTED_DOMAINS:
         score -= 15
         details.append({"text": f"Sender domain '{sender_domain}' is in trusted list", "severity": "low"})
-    else:
+<<<<<<< HEAD
+    elif sender_domain != "unknown":
         score += 5
+=======
+    else:
+<<<<<<< HEAD
+        score += 5
+=======
+        score += 3
+>>>>>>> 8115a2d58adbb57654b1bbfcb9fdbb0c6797a976
+>>>>>>> ba37c5075851222e36a70e89f2adfc40bc14054e
         details.append({"text": f"Sender domain '{sender_domain}' not trusted", "severity": "low"})
 
     # --- RETURN-PATH/REPLY-TO MISMATCH (Unique Scoring) ---
     rp = (headers.get("Return-Path") or "").strip()
     rt = (headers.get("Reply-To") or "").strip()
+<<<<<<< HEAD
+    sender_clean = (sender or "").lower().strip()
+    
+    if rp and rp.lower().rstrip('>') != sender_clean and not scored_for_return_path_mismatch:
+        score += 7
+        details.append({"text": f"Return-Path '{rp}' ≠ From '{sender}'", "severity": "medium"})
+        scored_for_return_path_mismatch = True
+        
+    if rt and rt.lower().rstrip('>') != sender_clean and not scored_for_reply_to_mismatch:
+        score += 7
+=======
     if rp and rp.lower() != (sender or "").lower():
         score += 7
         details.append({"text": f"Return-Path '{rp}' ≠ From '{sender}'", "severity": "medium"})
     if rt and rt.lower() != (sender or "").lower():
+<<<<<<< HEAD
         score += 7
+=======
+        score += 10
+>>>>>>> 8115a2d58adbb57654b1bbfcb9fdbb0c6797a976
+>>>>>>> ba37c5075851222e36a70e89f2adfc40bc14054e
         details.append({"text": f"Reply-To '{rt}' ≠ From '{sender}'", "severity": "medium"})
         scored_for_reply_to_mismatch = True
 
@@ -540,9 +630,22 @@ def analyze_email(sender, subject, body, attachments, headers):
             text = f"Possible CVE reference: {c['cve']} ({c['keyword']}) - {c.get('description', '')}"
             details.append({"text": text, "severity": "critical"})
 
+<<<<<<< HEAD
     if score >= 30:
         verdict = "🚨 High Risk: Likely Phishing or Spam"
     elif score >= 12:
+=======
+<<<<<<< HEAD
+    # --- FINAL VERDICT (REVISED THRESHOLDS) ---
+    if score >= 25: 
+        verdict = "🚨 High Risk: Likely Phishing or Spam"
+    elif score >= 10: 
+=======
+    if score >= 35:
+        verdict = "🚨 High Risk: Likely Phishing or Spam"
+    elif score >= 15:
+>>>>>>> 8115a2d58adbb57654b1bbfcb9fdbb0c6797a976
+>>>>>>> ba37c5075851222e36a70e89f2adfc40bc14054e
         verdict = "⚠️ Medium Risk: Suspicious"
     else:
         verdict = "✅ Low Risk: Likely Genuine"
