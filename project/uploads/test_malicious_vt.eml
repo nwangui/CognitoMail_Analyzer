@@ -1,0 +1,21 @@
+From: "IT Security" <security@malicious.com>
+To: recipient@yourdomain.com
+Subject: URGENT: Your Password Will Expire in 2 Hours - Click to Renew
+Date: Sat, 6 Dec 2025 10:00:00 -0500
+MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+
+Dear User,
+
+We have detected unusual activity on your account. To prevent immediate suspension and ensure your continued access to company resources, you must reset your password immediately.
+
+FAILURE TO DO SO WILL RESULT IN ACCOUNT LOCKOUT.
+
+Click the link below to verify your identity and renew your credentials:
+
+http://malicious.com/update-password
+
+You have 2 hours from the time this email was sent to complete the process. If you did not initiate this action, please ignore this email.
+
+Thank you,
+IT Security Team

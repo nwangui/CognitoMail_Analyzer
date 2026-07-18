@@ -12,7 +12,7 @@ import requests
 import tempfile
 from flask import send_file
 from weasyprint import HTML 
-from datetime import datetime # Import datetime here for report generation
+from datetime import datetime 
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
@@ -21,7 +21,6 @@ CVE_DB_FILENAME = "cve_list.json"
 os.makedirs(os.path.join(os.path.dirname(__file__), UPLOAD_FOLDER), exist_ok=True)
 
 
-# --- CVE DB (sample)
 def ensure_cve_db(filename=CVE_DB_FILENAME):
     """
     Loads the external CVE list if available.
@@ -147,7 +146,7 @@ def extract_domains(headers):
     return domains
 
 
-# --- analyze domains with clear reasons
+# --- analyze domains and provide clear reasons to the users
 def analyze_domains(domains):
     """
     Returns analysis dict with:
@@ -270,9 +269,8 @@ def analyze_domains(domains):
     return analysis
 
 
-# --- SECURE: Get API key from environment, fail safely if not found ---
-VT_API_KEY = os.getenv("VT_API_KEY")
 
+VT_API_KEY = os.getenv("VT_API_KEY")
 
 def vt_domain_lookup(domain):
     """
@@ -383,7 +381,7 @@ def check_cves(text):
     return found
 
 
-# Phishing rules and analyze_email unchanged — please reuse your analyze_email function from the earlier file.
+# Phishing rules and analyze_email unchanged 
 PHISHING_KEYWORDS = [
     r"\bverify(?:\s+your\s+)?account\b", r"\bclick\s+here.*?(login|update|reset|access)",
     r"\bupdate\s+your\s+information\b", r"\bsecurity\s+alert\b", r"\breset\s+your\s+password\b",
@@ -559,7 +557,7 @@ def analyze_email(sender, subject, body, attachments, headers):
     # --- FINAL VERDICT (REVISED THRESHOLDS) ---
     if score >= 25: 
         verdict = "🚨 High Risk: Likely Phishing or Spam"
-    elif score >= 10: 
+    elif score >= 12: 
         verdict = "⚠️ Medium Risk: Suspicious"
     else:
         verdict = "✅ Low Risk: Likely Genuine"
